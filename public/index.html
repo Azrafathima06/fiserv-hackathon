@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UPI Fraud Detector — Live Dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <!-- ── Navbar ── -->
+  <nav class="navbar">
+    <div class="nav-brand">
+      <div class="brand-logo">⚡</div>
+      <div>
+        <div class="brand-name">UPI Fraud Detector</div>
+        <div class="brand-sub">Real-Time Intelligence</div>
+      </div>
+    </div>
+    <div class="nav-center">
+      <div class="live-pill">
+        <span class="pulse-dot"></span> LIVE
+      </div>
+    </div>
+    <div class="nav-actions">
+      <a href="/dbview.html" class="btn btn-ghost">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+        View DB
+      </a>
+      <a href="/export" class="btn btn-ghost" id="exportBtn">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        Export CSV
+      </a>
+      <button class="btn btn-sim" id="simulateBtn" onclick="startSimulation()">
+        <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        Start Simulation
+      </button>
+    </div>
+  </nav>
+
+  <!-- ── Sim Banner ── -->
+  <div id="simBanner" class="sim-banner hidden">
+    <div class="sim-spinner"></div>
+    <span id="simMessage">Simulation running — firing 20 transactions every 2 s. Watch the dashboard light up…</span>
+    <div id="simProgress" class="sim-progress-wrap">
+      <div id="simProgressBar" class="sim-progress-bar" style="width:0%"></div>
+    </div>
+  </div>
+
+  <!-- ── Toast ── -->
+  <div id="toast" class="toast hidden"></div>
+
+  <main class="layout">
+
+    <!-- ── LEFT: Submit Form ── -->
+    <aside class="side-panel">
+      <div class="panel-header">
+        <span class="panel-icon">📤</span>
+        <h2>Submit Transaction</h2>
+      </div>
+
+      <form id="txForm" onsubmit="submitTransaction(event)" autocomplete="off">
+
+        <div class="field-group">
+          <label class="field-label">Payer ID</label>
+          <div class="input-wrap">
+            <span class="input-icon">👤</span>
+            <input type="text" name="payer_id" placeholder="e.g. 9988776655" required />
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Payee ID</label>
+          <div class="input-wrap">
+            <span class="input-icon">🏪</span>
+            <input type="text" name="payee_id" placeholder="e.g. MERCHANT121" required />
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Amount (₹)</label>
+          <div class="input-wrap">
+            <span class="input-icon">₹</span>
+            <input type="number" name="amount" placeholder="e.g. 9500" min="1" required />
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">
+            Timestamp
+            <span class="field-hint">leave blank = now &nbsp;|&nbsp; set to 2 AM to trigger night rule</span>
+          </label>
+          <div class="input-wrap">
+            <span class="input-icon">🕐</span>
+            <input type="datetime-local" name="timestamp" />
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Location</label>
+          <div class="input-wrap">
+            <span class="input-icon">📍</span>
+            <input type="text" name="location" placeholder="e.g. Delhi" />
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Device ID</label>
+          <div class="input-wrap">
+            <span class="input-icon">📱</span>
+            <input type="text" name="device_id" placeholder="e.g. ABC123" required />
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-evaluate" id="submitBtn">
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
+          Evaluate Transaction
+        </button>
+      </form>
+
+      <!-- Result Card -->
+      <div id="resultCard" class="result-card hidden">
+        <div class="result-top">
+          <div>
+            <div class="result-label">Risk Assessment</div>
+            <span id="resultBadge" class="badge"></span>
+          </div>
+          <div class="score-ring-wrap">
+            <svg class="score-ring" viewBox="0 0 60 60">
+              <circle cx="30" cy="30" r="24" fill="none" stroke="#1e293b" stroke-width="6"/>
+              <circle id="scoreArc" cx="30" cy="30" r="24" fill="none" stroke="#ef4444"
+                stroke-width="6" stroke-linecap="round"
+                stroke-dasharray="150.8" stroke-dashoffset="150.8"
+                transform="rotate(-90 30 30)"/>
+            </svg>
+            <div class="score-num" id="resultScore">0</div>
+          </div>
+        </div>
+        <div id="resultRules" class="result-rules"></div>
+      </div>
+
+      <!-- Rules Legend -->
+      <div class="rules-legend">
+        <div class="legend-title">Active Rules</div>
+        <div class="legend-item"><span class="legend-dot dot-red"></span>₹10k+ in &lt;1 min — 45 pts</div>
+        <div class="legend-item"><span class="legend-dot dot-orange"></span>&gt;10 tx in 5 min — 40 pts</div>
+        <div class="legend-item"><span class="legend-dot dot-yellow"></span>New payee + high amount — 40 pts</div>
+        <div class="legend-item"><span class="legend-dot dot-purple"></span>New device + new recipient — 35 pts</div>
+        <div class="legend-item"><span class="legend-dot dot-blue"></span>Midnight window — 20 pts</div>
+      </div>
+    </aside>
+
+    <!-- ── RIGHT: Dashboard ── -->
+    <section class="dashboard">
+
+      <!-- Stats Row -->
+      <div class="stats-row">
+        <div class="stat-card" id="card-total">
+          <div class="stat-icon-wrap stat-icon-blue">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          </div>
+          <div class="stat-body">
+            <div class="stat-value" id="statTotal">0</div>
+            <div class="stat-label">Total Transactions</div>
+          </div>
+        </div>
+        <div class="stat-card" id="card-flagged">
+          <div class="stat-icon-wrap stat-icon-red">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          </div>
+          <div class="stat-body">
+            <div class="stat-value red-val" id="statFlagged">0</div>
+            <div class="stat-label">Flagged</div>
+          </div>
+        </div>
+        <div class="stat-card" id="card-score">
+          <div class="stat-icon-wrap stat-icon-amber">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          </div>
+          <div class="stat-body">
+            <div class="stat-value amber-val" id="statAvgScore">0</div>
+            <div class="stat-label">Avg Risk Score</div>
+          </div>
+        </div>
+        <div class="stat-card" id="card-rate">
+          <div class="stat-icon-wrap stat-icon-green">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          </div>
+          <div class="stat-body">
+            <div class="stat-value green-val" id="statFlagRate">0%</div>
+            <div class="stat-label">Flag Rate</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Heatmap -->
+      <div class="glass-card">
+        <div class="card-head">
+          <div>
+            <h3 class="card-title">Risk Heatmap by Hour</h3>
+            <p class="card-desc">Fraud flags per hour of day — red bars = high-risk night window</p>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="heatmapChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Flagged Table -->
+      <div class="glass-card">
+        <div class="card-head">
+          <div>
+            <h3 class="card-title">Flagged Transactions</h3>
+            <p class="card-desc">Real-time feed of suspicious activity</p>
+          </div>
+          <span id="flaggedCount" class="count-badge">0</span>
+        </div>
+        <div class="table-scroll">
+          <table class="tx-table">
+            <thead>
+              <tr>
+                <th>Time / Location</th>
+                <th>Payer ID</th>
+                <th>Payee ID</th>
+                <th>Device</th>
+                <th>Amount</th>
+                <th>Risk</th>
+                <th>Score</th>
+                <th>Rules Triggered</th>
+              </tr>
+            </thead>
+            <tbody id="txTableBody">
+              <tr class="empty-row">
+                <td colspan="8">
+                  <div class="empty-state">
+                    <div class="empty-icon">🛡️</div>
+                    <div>No flagged transactions yet</div>
+                    <div class="empty-sub">Submit a transaction or hit <strong>Start Simulation</strong></div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

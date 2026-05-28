@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>DB Viewer — fraud.json</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#060d1a;--surface:#0f1f36;--surface2:#162840;
+      --border:#1e3352;--text:#e2eaf5;--muted:#6b87a8;--dim:#3d5a7a;
+      --blue:#3b82f6;--green:#10b981;--red:#ef4444;--amber:#f59e0b;--orange:#f97316;
+    }
+    body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:13px;min-height:100vh;}
+    ::-webkit-scrollbar{width:5px;height:5px}
+    ::-webkit-scrollbar-thumb{background:#1e3352;border-radius:3px}
+
+    /* Nav */
+    .nav{display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:56px;background:rgba(9,17,32,0.95);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10}
+    .nav-left{display:flex;align-items:center;gap:16px}
+    .nav-title{font-size:15px;font-weight:700}
+    .nav-sub{font-size:11px;color:var(--muted)}
+    .back-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:12px;cursor:pointer;text-decoration:none;transition:all .15s}
+    .back-btn:hover{color:var(--text);border-color:var(--blue)}
+
+    /* Summary chips */
+    .summary{display:flex;gap:12px;padding:18px 24px 0}
+    .chip{padding:8px 18px;border-radius:8px;font-size:12px;font-weight:700;border:1px solid}
+    .chip-total {background:rgba(59,130,246,.1);color:#93c5fd;border-color:rgba(59,130,246,.3)}
+    .chip-flagged{background:rgba(239,68,68,.1);color:#fca5a5;border-color:rgba(239,68,68,.3)}
+    .chip-clean {background:rgba(16,185,129,.1);color:#6ee7b7;border-color:rgba(16,185,129,.3)}
+    .chip span{font-size:18px;font-weight:800;margin-right:6px}
+
+    /* Filters */
+    .filters{display:flex;gap:10px;padding:14px 24px;align-items:center;flex-wrap:wrap}
+    .filter-label{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+    .filter-btn{padding:5px 14px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:12px;cursor:pointer;transition:all .15s}
+    .filter-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+    .search-input{padding:7px 14px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:12px;outline:none;width:220px;margin-left:auto}
+    .search-input:focus{border-color:var(--blue)}
+    .search-input::placeholder{color:var(--dim)}
+
+    /* Table */
+    .table-wrap{padding:0 24px 24px;overflow-x:auto}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th{text-align:left;padding:10px 12px;font-size:10.5px;font-weight:700;letter-spacing:.6px;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:56px;background:var(--bg);z-index:5}
+    td{padding:10px 12px;border-bottom:1px solid rgba(30,51,82,.5);vertical-align:middle;color:var(--text)}
+    tr:hover td{background:rgba(59,130,246,.04)}
+    tr:last-child td{border-bottom:none}
+
+    .mono{font-family:'Courier New',monospace;font-size:11px}
+    .badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase}
+    .badge-CRITICAL{background:rgba(220,38,38,.15);color:#f87171;border:1px solid rgba(220,38,38,.4)}
+    .badge-HIGH    {background:rgba(249,115,22,.15);color:#fb923c;border:1px solid rgba(249,115,22,.4)}
+    .badge-MEDIUM  {background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.4)}
+    .badge-LOW     {background:rgba(16,185,129,.1);color:#34d399;border:1px solid rgba(16,185,129,.3)}
+    .badge-flagged {background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.3);font-size:10px;padding:2px 8px}
+    .badge-clean   {background:rgba(16,185,129,.1);color:#6ee7b7;border:1px solid rgba(16,185,129,.3);font-size:10px;padding:2px 8px}
+
+    .score-bar-wrap{display:flex;align-items:center;gap:7px}
+    .score-bar{flex:1;height:4px;border-radius:2px;background:var(--border);min-width:50px;overflow:hidden}
+    .score-fill{height:100%;border-radius:2px}
+
+    .rules-cell{display:flex;flex-direction:column;gap:3px;max-width:220px}
+    .rule-tag{display:inline-block;background:rgba(239,68,68,.1);color:#fca5a5;border:1px solid rgba(239,68,68,.2);border-radius:4px;padding:1px 7px;font-size:10px;font-weight:600;width:fit-content}
+
+    .sim-tag{display:inline-block;background:rgba(59,130,246,.2);color:#93c5fd;border-radius:3px;padding:1px 5px;font-size:9px;font-weight:700;margin-left:4px}
+    .empty{text-align:center;padding:60px;color:var(--muted)}
+    .row-count{font-size:11px;color:var(--muted);padding:0 24px 10px}
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-left">
+    <a href="/" class="back-btn">← Dashboard</a>
+    <div>
+      <div class="nav-title">🗄️ Database Viewer</div>
+      <div class="nav-sub">fraud.json — all transactions (flagged + clean)</div>
+    </div>
+  </div>
+  <a href="/export" class="back-btn">⬇ Export CSV</a>
+</nav>
+
+<div class="summary" id="summary">
+  <div class="chip chip-total"><span id="chipTotal">0</span>Total Records</div>
+  <div class="chip chip-flagged"><span id="chipFlagged">0</span>Flagged</div>
+  <div class="chip chip-clean"><span id="chipClean">0</span>Clean</div>
+</div>
+
+<div class="filters">
+  <span class="filter-label">Filter:</span>
+  <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+  <button class="filter-btn" onclick="setFilter('flagged',this)">Flagged Only</button>
+  <button class="filter-btn" onclick="setFilter('clean',this)">Clean Only</button>
+  <button class="filter-btn" onclick="setFilter('sim',this)">Simulated</button>
+  <input class="search-input" id="searchInput" placeholder="Search payer, payee, location…" oninput="renderTable()"/>
+</div>
+
+<div class="row-count" id="rowCount"></div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Received At</th>
+        <th>Payer ID</th>
+        <th>Payee ID</th>
+        <th>Amount (₹)</th>
+        <th>Location</th>
+        <th>Device ID</th>
+        <th>Timestamp</th>
+        <th>Status</th>
+        <th>Risk Level</th>
+        <th>Score</th>
+        <th>Rules Triggered</th>
+        <th>Simulated</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<script>
+let allRecords = [];
+let activeFilter = 'all';
+
+async function load() {
+  const res  = await fetch('/api/db');
+  const data = await res.json();
+  allRecords = data.records;
+  document.getElementById('chipTotal').textContent   = data.total;
+  document.getElementById('chipFlagged').textContent = data.flagged;
+  document.getElementById('chipClean').textContent   = data.total - data.flagged;
+  renderTable();
+}
+
+function setFilter(f, btn) {
+  activeFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTable();
+}
+
+function renderTable() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  let rows = allRecords;
+
+  if (activeFilter === 'flagged') rows = rows.filter(r => r.flagged);
+  else if (activeFilter === 'clean') rows = rows.filter(r => !r.flagged);
+  else if (activeFilter === 'sim')   rows = rows.filter(r => r.simulated);
+
+  if (q) rows = rows.filter(r =>
+    (r.payer_id||'').toLowerCase().includes(q) ||
+    (r.payee_id||'').toLowerCase().includes(q) ||
+    (r.location||'').toLowerCase().includes(q) ||
+    (r.device_id||'').toLowerCase().includes(q)
+  );
+
+  document.getElementById('rowCount').textContent = `Showing ${rows.length} record(s)`;
+
+  const tbody = document.getElementById('tbody');
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="13" class="empty">No records match this filter.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map((r, i) => {
+    const rules = (r.triggered_rules || []);
+    const ruleHtml = rules.length
+      ? rules.map(x => `<span class="rule-tag">${x.code}</span>`).join('')
+      : '<span style="color:var(--dim)">—</span>';
+
+    const score = r.risk_score ?? r.riskScore ?? 0;
+    const level = r.risk_level ?? r.riskLevel ?? 'LOW';
+    const scoreColor = score>=80?'#ef4444':score>=60?'#f97316':score>=40?'#f59e0b':'#10b981';
+
+    const received = r.received_at ? new Date(r.received_at).toLocaleString('en-IN',{hour12:false}) : '—';
+    const ts       = r.timestamp   ? new Date(r.timestamp).toLocaleString('en-IN',{hour12:false}) : '—';
+    const amt      = Number(r.amount||0).toLocaleString('en-IN');
+
+    return `<tr>
+      <td style="color:var(--muted)">${i+1}</td>
+      <td style="white-space:nowrap;font-size:11px">${received}</td>
+      <td class="mono">${esc(r.payer_id)}</td>
+      <td class="mono">${esc(r.payee_id)}</td>
+      <td style="font-weight:700;color:${score>=40?'var(--red)':'var(--text)'}">₹${amt}</td>
+      <td>${esc(r.location)||'<span style="color:var(--dim)">—</span>'}</td>
+      <td class="mono" style="font-size:11px">${esc(r.device_id)}</td>
+      <td style="white-space:nowrap;font-size:11px">${ts}</td>
+      <td><span class="${r.flagged?'badge badge-flagged':'badge badge-clean'}">${r.flagged?'FLAGGED':'CLEAN'}</span></td>
+      <td><span class="badge badge-${level}">${level}</span></td>
+      <td>
+        <div class="score-bar-wrap">
+          <div class="score-bar"><div class="score-fill" style="width:${score}%;background:${scoreColor}"></div></div>
+          <span style="font-size:12px;font-weight:700;color:${scoreColor};min-width:24px">${score}</span>
+        </div>
+      </td>
+      <td><div class="rules-cell">${ruleHtml}</div></td>
+      <td>${r.simulated?'<span class="sim-tag">SIM</span>':'<span style="color:var(--dim)">manual</span>'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+load();
+setInterval(load, 3000); // auto-refresh every 3 s
+</script>
+</body>
+</html>
